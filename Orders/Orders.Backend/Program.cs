@@ -12,20 +12,33 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<DataContext>(x => x.UseSqlServer(builder.Configuration.GetConnectionString("LocalConnection")));
+builder.Services.AddTransient<SeedDb>();
 
 builder.Services.AddScoped(typeof(IGenericUnitOfWork<>), typeof(GenericUnitOfWork<>));
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
 var app = builder.Build();
+SeedData(app);
 
-if (app.Environment.IsDevelopment())
+void SeedData(WebApplication app)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var scopedFactory = app.Services.GetService<IServiceScopeFactory>();
+
+    using (var scope = scopedFactory!.CreateScope())
+    {
+        var service = scope.ServiceProvider.GetService<SeedDb>();
+        service!.SeedAsync().Wait();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseAuthorization();
+
+    app.MapControllers();
+
+    app.Run();
 }
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
